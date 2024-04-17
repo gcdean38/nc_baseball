@@ -1,0 +1,664 @@
+---
+title: "Project2"
+output: html_notebook
+---
+# Import Libraries
+```{r}
+library(tidyverse)
+library(rvest)
+library(tibble)
+```
+
+# Test Scrape
+```{r}
+# url <- "https://www.maxpreps.com/nc/baseball/23-24/division/class-4a-east/scores/?date=2/21/2024&statedivisionid=a7f97dc1-38dc-43de-b089-26126494000a"
+# html <- read_html(url)
+# 
+# 
+# html %>% html_elements("div.contest-box-item") %>% html_text2()
+```
+
+# Test Scrape (Multiple Games)
+```{r}
+# url <- "https://www.maxpreps.com/nc/baseball/23-24/division/class-4a-east/scores/?date=2/26/2024&statedivisionid=a7f97dc1-38dc-43de-b089-26126494000a"
+# html <- read_html(url)
+# 
+# 
+# games_d1 <- html %>% html_elements("div.contest-box-item") %>% html_text2()
+# games_d1_df <- as_tibble(games_d1)
+```
+
+# Clean data
+```{r}
+# class(games_d1)
+# data <- games_d1[!duplicated(games_d1) | games_d1 != "\r"]
+# 
+# # Split the data into separate columns based on \r
+# split_data <- strsplit(data, "\r")
+# 
+# # Remove empty strings
+# split_data <- lapply(split_data, function(x) x[x != ""])
+# 
+# # Determine the maximum number of games in any row
+# max_games <- max(lengths(split_data))
+# 
+# # Pad shorter rows with NA values
+# split_data <- lapply(split_data, function(x) c(x, rep(NA, max_games - length(x))))
+# 
+# # Convert to data frame
+# df <- as.data.frame(do.call(rbind, split_data))
+# 
+# # Rename columns
+# colnames(df) <- paste0("col_", 1:max_games)
+# 
+# # Print the resulting data frame
+# print(df)
+```
+
+
+# Keep games I want
+```{r}
+# target_section_found <- FALSE
+# 
+# # Initialize a list to store the games you want to keep
+# games_to_keep <- list()
+# 
+# # Iterate through each row of the data frame
+# target_section_found <- FALSE
+# 
+# # Initialize a list to store the games you want to keep
+# games_to_keep <- list()
+# 
+# # Iterate through each row of the data frame
+# for (i in 1:nrow(df)) {
+#     # Check if the row belongs to the target section
+#     if (!target_section_found) {
+#         # Check your condition for identifying the target section
+#         if (!is.na(df[i, 1])) {
+#             target_section_found <- TRUE
+#             games_to_keep <- rbind(games_to_keep, df[i, ])
+#         }
+#     } else {
+#         # Check if the row is a blank row
+#         if (all(is.na(df[i, ]))) {
+#             # Exit the loop if a blank row is encountered after the target                section
+#             break
+#         } else {
+#             # Keep adding games to the list if they are within the target                 section
+#             games_to_keep <- rbind(games_to_keep, df[i, ])
+#         }
+#     }
+# }
+# 
+# # Convert the list of games to keep back to a data frame
+# df_filtered <- as.data.frame(games_to_keep)
+# print(df_filtered)
+```
+
+# Reformat dataframe
+```{r}
+# df_filtered <- df_filtered[, c(1, 2, 5, 6)]
+# print(df_filtered)
+# 
+# 
+# # Rename columns
+# colnames(df_filtered)[1] <- "away_score"
+# colnames(df_filtered)[2] <- "away_team"
+# colnames(df_filtered)[3] <- "home_score"
+# colnames(df_filtered)[4] <- "home_team"
+# print(df_filtered)
+# 
+# # Reorder columns
+# df_filtered <- df_filtered[, c(4,3, 2, 1 )]
+# 
+# df_filtered$away_team <- gsub("\\s*\\(#[0-9]+\\)\\s*", "", df_filtered$away_team)
+# df_filtered$home_team <- gsub("\\s*\\(#[0-9]+\\)\\s*", "", df_filtered$home_team)
+# # Print the resulting data frame
+# print(df_filtered)
+
+```
+
+# Trying some looping techniques 
+## Hoping to start by getting the games from February and we'll go from there
+```{r}
+game_data = NULL
+range <- 26:29
+days <- c(21, range)
+feb_game_data = NULL
+base_url <- "https://www.maxpreps.com/nc/baseball/23-24/division/class-4a-east/scores/?date=2/dd/2024&statedivisionid=a7f97dc1-38dc-43de-b089-26126494000a"
+day_placeholder <- "dd"
+for (day in days) {
+  # REPLACE DAYS
+  url <- gsub(day_placeholder, substr(day, 1, 2), base_url)
+  #print(url)
+  
+  # PERFORM SCRAPE
+  html <- read_html(url)
+  games_dummy <- html %>% html_elements("div.contest-box-item") %>%   html_text2()
+  games_dummy_df <- as_tibble(games_dummy)
+  
+  # CLEAN DATA
+  data <- games_dummy[!duplicated(games_dummy) | games_dummy != "\r"]
+  ## Split the data into separate columns based on \r
+  split_data <- strsplit(data, "\r")
+  ## Remove empty strings
+  split_data <- lapply(split_data, function(x) x[x != ""])
+  ## Determine the maximum number of games in any row
+  max_games <- max(lengths(split_data))
+  ## Pad shorter rows with NA values
+  split_data <- lapply(split_data, function(x) c(x, rep(NA, max_games - length(x))))
+  ## Convert to data frame
+  df <- as.data.frame(do.call(rbind, split_data))
+  ## Rename columns
+  colnames(df) <- paste0("col_", 1:max_games)
+  
+  # REMOVE EXCESS GAMES
+  target_section_found <- FALSE
+  # Initialize a list to store the games you want to keep
+  games_to_keep <- list()
+  # Iterate through each row of the data frame
+  target_section_found <- FALSE
+  # Initialize a list to store the games you want to keep
+  games_to_keep <- list()
+  # Iterate through each row of the data frame
+  for (i in 1:nrow(df)) {
+      # Check if the row belongs to the target section
+      if (!target_section_found) {
+          # Check your condition for identifying the target section
+          if (!is.na(df[i, 1])) {
+              target_section_found <- TRUE
+              games_to_keep <- rbind(games_to_keep, df[i, ])
+          }
+      } else {
+          # Check if the row is a blank row
+          if (all(is.na(df[i, ]))) {
+              # Exit the loop if a blank row is encountered after the target                section
+              break
+          } else {
+              # Keep adding games to the list if they are within the target                 section
+              games_to_keep <- rbind(games_to_keep, df[i, ])
+          }
+      }
+  }
+  # Convert the list of games to keep back to a data frame
+  df_filtered <- as.data.frame(games_to_keep)
+  
+  # REFORMAT DATA
+  df_filtered <- df_filtered[, c(1, 2, 5, 6)]
+  # Rename columns
+  colnames(df_filtered)[1] <- "away_score"
+  colnames(df_filtered)[2] <- "away_team"
+  colnames(df_filtered)[3] <- "home_score"
+  colnames(df_filtered)[4] <- "home_team"
+  # Reorder columns
+  df_filtered <- df_filtered[, c(4,3, 2, 1 )]
+  df_filtered$away_team <- gsub("\\s*\\(#[0-9]+\\)\\s*", " ", df_filtered$away_team)
+  df_filtered$home_team <- gsub("\\s*\\(#[0-9]+\\)\\s*", " ", df_filtered$home_team)
+  df_filtered$game_date <- paste0("2/",day,"/24")
+
+  #print(df_filtered)
+  feb_game_data <- rbind(feb_game_data,df_filtered)
+}
+```
+
+# March data
+## I know this isn't the most efficient way, and I will clean this up (hopefully), but I'm going to scrape each month individually and then bind them together
+
+```{r}
+
+range <- 1:31
+items_to_remove <- c(2,3,6,9,10,17,24,31)
+
+# Remove specific items from the list
+days <- range[!range %in% items_to_remove]
+
+mar_game_data = NULL
+base_url <- "https://www.maxpreps.com/nc/baseball/23-24/division/class-4a-east/scores/?date=3/dd/2024&statedivisionid=a7f97dc1-38dc-43de-b089-26126494000a"
+day_placeholder <- "dd"
+for (day in days) {
+  # REPLACE DAYS
+  url <- gsub(day_placeholder, substr(day, 1, 2), base_url)
+  #print(url)
+ 
+  # PERFORM SCRAPE
+  html <- read_html(url)
+  games_dummy <- html %>% html_elements("div.contest-box-item") %>%   html_text2()
+  games_dummy_df <- as_tibble(games_dummy)
+  
+  # CLEAN DATA
+  data <- games_dummy[!duplicated(games_dummy) | games_dummy != "\r"]
+  ## Split the data into separate columns based on \r
+  split_data <- strsplit(data, "\r")
+  ## Remove empty strings
+  split_data <- lapply(split_data, function(x) x[x != ""])
+  ## Determine the maximum number of games in any row
+  max_games <- max(lengths(split_data))
+  ## Pad shorter rows with NA values
+  split_data <- lapply(split_data, function(x) c(x, rep(NA, max_games - length(x))))
+  ## Convert to data frame
+  df <- as.data.frame(do.call(rbind, split_data))
+  ## Rename columns
+  colnames(df) <- paste0("col_", 1:max_games)
+  
+  # REMOVE EXCESS GAMES
+  target_section_found <- FALSE
+  # Initialize a list to store the games you want to keep
+  games_to_keep <- list()
+  # Iterate through each row of the data frame
+  target_section_found <- FALSE
+  # Initialize a list to store the games you want to keep
+  games_to_keep <- list()
+  # Iterate through each row of the data frame
+  for (i in 1:nrow(df)) {
+      # Check if the row belongs to the target section
+      if (!target_section_found) {
+          # Check your condition for identifying the target section
+          if (!is.na(df[i, 1])) {
+              target_section_found <- TRUE
+              games_to_keep <- rbind(games_to_keep, df[i, ])
+          }
+      } else {
+          # Check if the row is a blank row
+          if (all(is.na(df[i, ]))) {
+              # Exit the loop if a blank row is encountered after the target                section
+              break
+          } else {
+              # Keep adding games to the list if they are within the target                 section
+              games_to_keep <- rbind(games_to_keep, df[i, ])
+          }
+      }
+  }
+  # Convert the list of games to keep back to a data frame
+  df_filtered <- as.data.frame(games_to_keep)
+  
+  # REFORMAT DATA
+  df_filtered <- df_filtered[, c(1, 2, 5, 6)]
+  # Rename columns
+  colnames(df_filtered)[1] <- "away_score"
+  colnames(df_filtered)[2] <- "away_team"
+  colnames(df_filtered)[3] <- "home_score"
+  colnames(df_filtered)[4] <- "home_team"
+  # Reorder columns
+  df_filtered <- df_filtered[, c(4,3, 2, 1 )]
+  df_filtered$away_team <- gsub("\\s*\\(#[0-9]+\\)\\s*", " ", df_filtered$away_team)
+  df_filtered$home_team <- gsub("\\s*\\(#[0-9]+\\)\\s*", " ", df_filtered$home_team)
+  df_filtered$game_date <- paste0("3/",day,"/24")
+
+  # print_filtered
+  mar_game_data <- rbind(mar_game_data,df_filtered)
+}
+```
+
+
+
+# April data
+## I know this isn't the most efficient way, and I will clean this up (hopefully), but I'm going to scrape each month individually and then bind them together
+```{r}
+today <- Sys.Date()
+today_day <- as.numeric(format(today, "%d"))-1
+range <- 1:today_day
+items_to_remove <- c(7,14)
+
+# Remove specific items from the list
+days <- range[!range %in% items_to_remove]
+
+apr_game_data = NULL
+base_url <- "https://www.maxpreps.com/nc/baseball/23-24/division/class-4a-east/scores/?date=4/dd/2024&statedivisionid=a7f97dc1-38dc-43de-b089-26126494000a"
+day_placeholder <- "dd"
+for (day in days) {
+  # REPLACE DAYS
+  url <- gsub(day_placeholder, substr(day, 1, 2), base_url)
+  #print(url)
+ 
+  # PERFORM SCRAPE
+  html <- read_html(url)
+  games_dummy <- html %>% html_elements("div.contest-box-item") %>%   html_text2()
+  games_dummy_df <- as_tibble(games_dummy)
+  
+  # CLEAN DATA
+  data <- games_dummy[!duplicated(games_dummy) | games_dummy != "\r"]
+  ## Split the data into separate columns based on \r
+  split_data <- strsplit(data, "\r")
+  ## Remove empty strings
+  split_data <- lapply(split_data, function(x) x[x != ""])
+  ## Determine the maximum number of games in any row
+  max_games <- max(lengths(split_data))
+  ## Pad shorter rows with NA values
+  split_data <- lapply(split_data, function(x) c(x, rep(NA, max_games - length(x))))
+  ## Convert to data frame
+  df <- as.data.frame(do.call(rbind, split_data))
+  ## Rename columns
+  colnames(df) <- paste0("col_", 1:max_games)
+  
+  # REMOVE EXCESS GAMES
+  target_section_found <- FALSE
+  # Initialize a list to store the games you want to keep
+  games_to_keep <- list()
+  # Iterate through each row of the data frame
+  target_section_found <- FALSE
+  # Initialize a list to store the games you want to keep
+  games_to_keep <- list()
+  # Iterate through each row of the data frame
+  for (i in 1:nrow(df)) {
+      # Check if the row belongs to the target section
+      if (!target_section_found) {
+          # Check your condition for identifying the target section
+          if (!is.na(df[i, 1])) {
+              target_section_found <- TRUE
+              games_to_keep <- rbind(games_to_keep, df[i, ])
+          }
+      } else {
+          # Check if the row is a blank row
+          if (all(is.na(df[i, ]))) {
+              # Exit the loop if a blank row is encountered after the target                section
+              break
+          } else {
+              # Keep adding games to the list if they are within the target                 section
+              games_to_keep <- rbind(games_to_keep, df[i, ])
+          }
+      }
+  }
+  # Convert the list of games to keep back to a data frame
+  df_filtered <- as.data.frame(games_to_keep)
+  
+  # REFORMAT DATA
+  df_filtered <- df_filtered[, c(1, 2, 5, 6)]
+  # Rename columns
+  colnames(df_filtered)[1] <- "away_score"
+  colnames(df_filtered)[2] <- "away_team"
+  colnames(df_filtered)[3] <- "home_score"
+  colnames(df_filtered)[4] <- "home_team"
+  # Reorder columns
+  df_filtered <- df_filtered[, c(4,3, 2, 1 )]
+  df_filtered$away_team <- gsub("\\s*\\(#[0-9]+\\)\\s*", " ", df_filtered$away_team)
+  df_filtered$home_team <- gsub("\\s*\\(#[0-9]+\\)\\s*", " ", df_filtered$home_team)
+  df_filtered$game_date <- paste0("4/",day,"/24")
+
+  #print(df_filtered)
+  apr_game_data <- rbind(apr_game_data,df_filtered)
+}
+```
+
+# Future Games (Hopefully to do some end of season projections and whatnot)
+```{r}
+# range <- today_day:30
+# items_to_remove <- c(21,28)
+# 
+# # Remove specific items from the list
+# days <- range[!range %in% items_to_remove]
+# 
+# apr_future_game_data = NULL
+# base_url <- "https://www.maxpreps.com/nc/baseball/23-24/division/class-4a-east/scores/?date=4/dd/2024&statedivisionid=a7f97dc1-38dc-43de-b089-26126494000a"
+# day_placeholder <- "dd"
+# for (day in days) {
+#   # REPLACE DAYS
+#   url <- gsub(day_placeholder, substr(day, 1, 2), base_url)
+#   #print(url)
+#  
+#   # PERFORM SCRAPE
+#   html <- read_html(url)
+#   games_dummy <- html %>% html_elements("div.contest-box-item") %>%   html_text2()
+#   games_dummy_df <- as_tibble(games_dummy)
+#   
+#   # CLEAN DATA
+#   data <- games_dummy[!duplicated(games_dummy) | games_dummy != "\r"]
+#   ## Split the data into separate columns based on \r
+#   split_data <- strsplit(data, "\r")
+#   ## Remove empty strings
+#   split_data <- lapply(split_data, function(x) x[x != ""])
+#   ## Determine the maximum number of games in any row
+#   max_games <- max(lengths(split_data))
+#   ## Pad shorter rows with NA values
+#   split_data <- lapply(split_data, function(x) c(x, rep(NA, max_games - length(x))))
+#   ## Convert to data frame
+#   df <- as.data.frame(do.call(rbind, split_data))
+#   ## Rename columns
+#   colnames(df) <- paste0("col_", 1:max_games)
+#   
+#   # REMOVE EXCESS GAMES
+#   target_section_found <- FALSE
+#   # Initialize a list to store the games you want to keep
+#   games_to_keep <- list()
+#   # Iterate through each row of the data frame
+#   target_section_found <- FALSE
+#   # Initialize a list to store the games you want to keep
+#   games_to_keep <- list()
+#   # Iterate through each row of the data frame
+#   for (i in 1:nrow(df)) {
+#       # Check if the row belongs to the target section
+#       if (!target_section_found) {
+#           # Check your condition for identifying the target section
+#           if (!is.na(df[i, 1])) {
+#               target_section_found <- TRUE
+#               games_to_keep <- rbind(games_to_keep, df[i, ])
+#           }
+#       } else {
+#           # Check if the row is a blank row
+#           if (all(is.na(df[i, ]))) {
+#               # Exit the loop if a blank row is encountered after the target                section
+#               break
+#           } else {
+#               # Keep adding games to the list if they are within the target                 section
+#               games_to_keep <- rbind(games_to_keep, df[i, ])
+#           }
+#       }
+#   }
+#   # Convert the list of games to keep back to a data frame
+#   df_filtered <- as.data.frame(games_to_keep)
+#   
+#   # REFORMAT DATA
+#   df_filtered <- df_filtered[, c(1, 2, 5, 6)]
+#   # Rename columns
+#   colnames(df_filtered)[1] <- "away_score"
+#   colnames(df_filtered)[2] <- "away_team"
+#   colnames(df_filtered)[3] <- "home_score"
+#   colnames(df_filtered)[4] <- "home_team"
+#   # Reorder columns
+#   df_filtered <- df_filtered[, c(4,3, 2, 1 )]
+#   df_filtered$away_team <- gsub("\\s*\\(#[0-9]+\\)\\s*", " ", df_filtered$away_team)
+#   df_filtered$home_team <- gsub("\\s*\\(#[0-9]+\\)\\s*", " ", df_filtered$home_team)
+#   df_filtered$game_date <- paste0("4/",day,"/24")
+# 
+#   #print(df_filtered)
+#   apr_future_game_data <- rbind(apr_future_game_data,df_filtered)
+# }
+```
+
+
+# Merge Feb/Mar game data together
+```{r}
+game_data <- rbind(feb_game_data,mar_game_data)
+game_data <- rbind(game_data,apr_game_data)
+game_data <- game_data[game_data$home_team != "\n", ]
+game_data <- game_data[game_data$home_team != " ", ]
+
+game_data$home_score <- as.numeric(game_data$home_score)
+game_data$away_score <- as.numeric(game_data$away_score)
+game_data$game_result <- ifelse(game_data$home_score > game_data$away_score, 1, 0)
+game_data$home_rating <- 1500
+game_data$away_rating <- 1500
+game_data$game_id <- seq(1, nrow(game_data))
+
+```
+
+# Elo calculations
+```{r}
+prob_win <- function(team_rating, opp_team_rating, divisor = 600){
+  return(1 / (1 + 10^((opp_team_rating - team_rating) / divisor)))
+}
+
+# calculates the updated elo rating for a team based on the teams
+calc_new_rating <- function(team_rating, game_result, prob_win, k_factor = 40){
+  return(team_rating + k_factor * (game_result - prob_win))
+}
+```
+
+
+# Group by team
+```{r}
+elo_data <- game_data
+for(i in 1:nrow(elo_data)){
+  # select the game id for the current game (used for indexing)
+  game_id = elo_data$game_id[i]
+  
+  # select the teams that play in game i
+  home_team = elo_data$home_team[i]
+  away_team = elo_data$away_team[i]
+  
+  # select the teams elo going into game i
+ home_team_elo = elo_data$home_rating[i]
+  away_team_elo = elo_data$away_rating[i]
+
+  # # outcome of game i
+  outcome = elo_data$game_result[i]
+  # # calculate the probability of winning based on current elo
+  prob1wins = prob_win(home_team_elo, away_team_elo)
+  prob2wins = prob_win(away_team_elo, home_team_elo)
+  
+  # # calculate the new elo rating for each team
+  new_rating_team1 = calc_new_rating(home_team_elo, outcome, prob1wins)
+  new_rating_team2 = calc_new_rating(away_team_elo, 1-outcome, prob2wins)
+  
+  #### update the new values in the data frame
+  home_team_ind = (1:nrow(elo_data))[((elo_data$home_team == home_team) | (elo_data$away_team == home_team)) & (elo_data$game_id > game_id)][1]
+  away_team_ind = (1:nrow(elo_data))[((elo_data$home_team == away_team) | (elo_data$away_team == away_team)) & (elo_data$game_id > game_id)][1]
+  # # update team 1 elo
+  if(!is.na(home_team_ind)){
+    if(elo_data$home_team[home_team_ind] == home_team){
+      elo_data$home_rating[home_team_ind] = new_rating_team1 # update
+    }else{
+      elo_data$away_rating[home_team_ind] = new_rating_team1 # update
+    }
+  }
+  # update team 2 elo
+  if(!is.na(away_team_ind)){
+    if(elo_data$away_team[away_team_ind] == away_team){
+      elo_data$away_rating[away_team_ind] = new_rating_team2
+    }else{
+      elo_data$home_rating[away_team_ind] = new_rating_team2
+    }
+  }
+}
+```
+
+# Grouping data
+```{r}
+elo_plot = elo_data %>%
+  pivot_longer(home_rating:away_rating, names_to = 'Group', values_to = 'ELO') %>%
+  mutate(team = ifelse(Group == 'home_rating', home_team, away_team)) %>%
+  select(game_date, ELO, team)
+```
+
+# Data exploration
+```{r}
+gh <- elo_plot %>% filter(team==" Green Hope")
+
+gh$game_date <- strptime(gh$game_date, format = "%m/%d/%y")
+start_date <- as.POSIXlt("2024-02-21")
+
+gh$season_day <- as.numeric(gh$game_date - start_date) + 1
+
+ggplot(gh, aes(x = season_day, y = ELO)) +
+  geom_line()
+```
+
+# Add season_day for all games
+```{r}
+elo_plot$game_date <- strptime(elo_plot$game_date, format = "%m/%d/%y")
+start_date <- as.POSIXlt("2024-02-21")
+
+elo_plot$season_day <- as.numeric(difftime(elo_plot$game_date, start_date, units = "days")) + 1
+swac_teams <- c(" Green Hope", " Green Level", " Panther Creek", " Middle Creek", " Holly Springs", " Apex", " Apex Friendship", " Cary")
+
+team_colors <- c(" Green Hope"="Dark Green", " Green Level"="Navy", " Panther Creek"="Sky Blue", " Middle Creek"="Black", " Holly Springs"="Purple", " Apex"="Yellow", " Apex Friendship"="Red", " Cary"="Lime Green")  # Add colors for each team
+
+
+swac_data <- subset(elo_plot, team %in% swac_teams)
+ggplot(swac_data, aes(x = season_day, y = ELO,color = team)) +
+  geom_line() +scale_color_manual(values = team_colors)
+
+```
+
+# Conference coding
+```{r}
+#teams <- unique(c(elo_plot$team))
+#teams
+swac_teams <- c(" Green Hope", " Green Level", " Panther Creek", " Middle Creek", " Holly Springs", " Apex", " Apex Friendship", " Cary")
+big_carolina_teams <- c(" D.H. Conley"," New Bern")
+big_carolina_3a <- c(" Havelock", " Jacksonville", " J.H. Rose", " Northside - Jacksonville", " South Central")
+mid_eastern_teams <- c(" Ashley"," Hoggard", " Laney", " New Hanover", " Topsail")
+mid_eastern_3a <- c(" North Brunswick", " South Brunswick", " West Brunswick")
+cap_six <- c(" Athens Drive", " Broughton", " Cardinal Gibbons", " Enloe", " Leesville Road", " Sanderson")
+northern_athletic <- c(" Heritage", " Knightdale", " Millbrook", " Rolesville", " Wake Forest", " Wakefield")
+united_eight <- c(" Jack Britt", " Gray's Creek", " Lumberton", " South View", " Purnell Swett")
+united_eight_3a <- c(" Douglas Byrd", " Cape Fear", " Seventy-First")
+greater_neuse <- c(" Corinth Holders", " Clayton", " Cleveland", " Fuquay - Varina", " Garner", " South Garner", " Southeast Raleigh", " Willow Spring")
+dc_six <- c(" Jordan", " Chapel Hill", " East Chapel Hill", " Hillside", " Riverside-Durham", " Riverside-Durham")
+all_american <- c(" Overhills", " Pine Forest")
+all_american_3a <- c(" E.E. Smith", " Harnett Central", " Terry Sanford", " Triton", " Western Harnett", " Westover")
+sandhills <- c(" Hoke County", " Pinecrest", " Richmond")
+sandhills_3a <- c(" Lee County", " Scotland", " Southern Lee", " Union Pines")
+metro <- c(" Grimsley", " Northern Guilford", " Northwest Guilford", " Page", " Ragsdale", " Southeast Guilford", " Southwest Guilford", " Western Guilford")
+central_piedmont <- c(" Davie County", " East Forsyth", " Glenn", " Mount Tabor", " Parkland", " Reagan", " RJ Reynolds", " West Forsyth")
+
+get_conference <- function(team) {
+  if (team %in% swac_teams) {
+    return("SWAC")
+  } else if (team %in% big_carolina_teams) {
+    return("Big Carolina")
+  } else if (team %in% big_carolina_3a) {
+    return("Big Carolina (3A)")
+  }else if (team %in% mid_eastern_teams) {
+    return("Mid Eastern")
+  }else if (team %in% mid_eastern_3a) {
+    return("Mid Eastern (3A)")
+  }else if (team %in% cap_six) {
+    return("CAP 6")
+  }else if (team %in% northern_athletic) {
+    return("Northern Athletic")
+  }else if (team %in% united_eight) {
+    return("United 8")
+  }else if (team %in% united_eight_3a) {
+    return("United 8 (3A)")
+  }else if (team %in% greater_neuse) {
+    return("Greater Neuse")
+  }else if (team %in% dc_six) {
+    return("DC 6")
+  }else if (team %in% all_american) {
+    return("All American")
+  }else if (team %in% all_american_3a) {
+    return("All American (3A)")
+  }else if (team %in% sandhills) {
+    return("Sandhills")
+  }else if (team %in% sandhills_3a) {
+    return("Sandhills (3A)")
+  }else if (team %in% metro) {
+    return("Metro")
+  }else if (team %in% central_piedmont) {
+    return("Central Piedmont")
+  }  else {
+    return("Other")
+  }
+}
+
+# Apply function to create conference column
+elo_plot$conference <- sapply(elo_plot$team, get_conference)
+
+table(elo_plot$conference)
+```
+# A few other conference plots
+```{r}
+cap6_data <- subset(elo_plot, team %in% cap_six)
+ggplot(cap6_data, aes(x = season_day, y = ELO,color = team)) +
+  geom_line()
+
+dc6_data <- subset(elo_plot, team %in% dc_six)
+ggplot(dc6_data, aes(x = season_day, y = ELO,color = team)) +
+  geom_line()
+```
+
+
+
+```{r}
+```
+
