@@ -578,33 +578,21 @@ ggplot(dc6_data, aes(x = season_day, y = ELO,color = team)) +
   geom_line()
 ```
 
-
-
-# Future Games (Hopefully to do some end of season projections and whatnot)
+# Filter Big 3 conference data
 ```{r}
-today <- Sys.Date()
-today_day <- format(today, "%d")
-tomorrow_day <- as.numeric(today_day) + 2
-range <- tomorrow_day:30
-items_to_remove <- c(21,28)
+big_five_data <- elo_plot %>% filter(conference %in% c("SWAC","DC 6", "CAP 6", "Greater Neuse", "Northern Athletic"))
+```
 
-# Remove specific items from the list
-days <- range[!range %in% items_to_remove]
 
-apr_future_game_data = NULL
-base_url <- "https://www.maxpreps.com/nc/baseball/23-24/division/class-4a-east/scores/?date=4/dd/2024&statedivisionid=a7f97dc1-38dc-43de-b089-26126494000a"
-day_placeholder <- "dd"
-for (day in days) {
-  # REPLACE DAYS
-  url <- gsub(day_placeholder, substr(day, 1, 2), base_url)
-  #print(url)
-
-  # PERFORM SCRAPE
-  html <- read_html(url)
+# Get Friday's Games
+```{r}
+final_game_data = NULL
+url <- "https://www.maxpreps.com/nc/baseball/23-24/league/southwest-wake-4a/scores/?leagueid=a9f4afca-cb4f-4f2c-8776-01b29936c970"
+ html <- read_html(url)
   games_dummy <- html %>% html_elements("div.contest-box-item") %>%   html_text2()
   games_dummy_df <- as_tibble(games_dummy)
-
-  # CLEAN DATA
+#  View(games_dummy_df)
+  
   data <- games_dummy[!duplicated(games_dummy) | games_dummy != "\r"]
   ## Split the data into separate columns based on \r
   split_data <- strsplit(data, "\r")
@@ -618,9 +606,8 @@ for (day in days) {
   df <- as.data.frame(do.call(rbind, split_data))
   ## Rename columns
   colnames(df) <- paste0("col_", 1:max_games)
-
-  # REMOVE EXCESS GAMES
-  target_section_found <- FALSE
+  
+    target_section_found <- FALSE
   # Initialize a list to store the games you want to keep
   games_to_keep <- list()
   # Iterate through each row of the data frame
@@ -649,24 +636,25 @@ for (day in days) {
   }
   # Convert the list of games to keep back to a data frame
   df_filtered <- as.data.frame(games_to_keep)
-
-  # REFORMAT DATA
+  df_filtered <- head(df_filtered,4)
+ # View(df_filtered)
+  day=26
   df_filtered <- df_filtered[, c(1, 2, 5, 6)]
   # Rename columns
-  colnames(df_filtered)[1] <- "away_score"
-  colnames(df_filtered)[2] <- "away_team"
-  colnames(df_filtered)[3] <- "home_score"
-  colnames(df_filtered)[4] <- "home_team"
+  colnames(df_filtered)[1] <- "home_score"
+  colnames(df_filtered)[2] <- "home_team"
+  colnames(df_filtered)[3] <- "away_score"
+  colnames(df_filtered)[4] <- "away_team"
   # Reorder columns
   df_filtered <- df_filtered[, c(4,3, 2, 1 )]
   df_filtered$away_team <- gsub("\\s*\\(#[0-9]+\\)\\s*", " ", df_filtered$away_team)
   df_filtered$home_team <- gsub("\\s*\\(#[0-9]+\\)\\s*", " ", df_filtered$home_team)
   df_filtered$game_date <- paste0("4/",day,"/24")
-
-  #print(df_filtered)
-  apr_future_game_data <- rbind(apr_future_game_data,df_filtered)
-}
+apr_future_game_data <- df_filtered
 ```
+
+
+
 
 # Merge data into future games
 ```{r}
